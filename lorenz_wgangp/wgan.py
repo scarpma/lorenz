@@ -190,16 +190,20 @@ class WGANGP():
         plt.savefig(self.dir_path+f'training.png', fmt='png', dpi=100)
         plt.close()
 
-    def train(self, epochs, db_train):
+    def train(self, epochs, db_train, db_test):
         
         # salvo info log #
         with open(self.dir_path+'logs.txt','a+') as f:
             f.write(f"TRAINING\nncritic={self.n_critic}\nepochs={epochs}\n")
             f.write(self.text)
         fl = open(self.dir_path+'training.dat','a+')
+        fl.write(f"# iter, d_loss_tot, d_loss_true, d_loss_fake, d_loss_gp, d_loss_tot_test, d_loss_true_test, d_loss_fake_test, d_loss_gp_test, g_loss\n")
+
         # ############## #
         
         static_noise = np.random.normal(0, 1, size=(1, self.noise_dim))
+        d_loss_test = [0., 0., 0., 0.]
+        g_loss = 0.
         
         valid = -np.ones((self.batch_size, 1))
         fake =  np.ones((self.batch_size, 1))
@@ -209,7 +213,6 @@ class WGANGP():
  
         for epoch in range(epochs):
 
-            d_loss = 0
             for _ in range(self.n_critic):
 
                 # ---------------------
@@ -222,23 +225,26 @@ class WGANGP():
                 # Sample generator input
                 noise = np.random.normal(0, 1, (self.batch_size, self.noise_dim))
                 # Train the critic
-                d_loss_ = self.critic_model.train_on_batch([imgs, noise],
+                d_loss = self.critic_model.train_on_batch([imgs, noise],
                                                            [valid, fake, dummy])
-                d_loss += d_loss_[0]
-            d_loss /= self.n_critic
+                print(d_loss)
+                fl.write("%7d %13.7g %13.7g %13.7g %13.7g %13.7g %13.7g %13.7g %13.7g %13.7g\n"%(epoch,d_loss[0],d_loss[1],d_loss[2],d_loss[3],d_loss_test[0],d_loss_test[1],d_loss_test[2],d_loss_test[3],g_loss))
 
             # ---------------------
             #  Train Generator
             # ---------------------
 
+            idx = np.random.randint(0, db_test.shape[0], self.batch_size)
+            imgs = db_test[idx]
+            d_loss_test = self.critic_model.test_on_batch([imgs, noise],
+                                                          [valid, fake, dummy])
             g_loss = self.gen_model.train_on_batch(noise, valid)
             self.g_losses.append(g_loss)
             self.d_losses.append(d_loss)
 
             # Plot the progress
-            text = f"{epoch} [D loss: {d_loss:.3f}] [G loss: {g_loss:.3f}]"
-            print(text)
-            fl.write(text+'\n')
+            print(f"{epoch} [D loss: {d_loss[0]:6.2g}] [d_loss_test: {d_loss_test[0]:6.2g}] [G loss: {g_loss:6.2g}]")
+            fl.write("%7d %13.7g %13.7g %13.7g %13.7g %13.7g %13.7g %13.7g %13.7g %13.7g\n"%(epoch,d_loss[0],d_loss[1],d_loss[2],d_loss[3],d_loss_test[0],d_loss_test[1],d_loss_test[2],d_loss_test[3],g_loss))
 
             # If at save interval => save generated image samples
             if epoch % 100 == 0:
@@ -267,7 +273,7 @@ if __name__ == '__main__' :
     load = args.load
     ncritic = args.ncritic
     
-    db_train , _ = load_data()
+    db_train , db_test = load_data()
     
     noise_dim = 100
     
@@ -286,9 +292,9 @@ if __name__ == '__main__' :
     else:
         fs=(20,1)
         fm=256
-        init_sigma = 0.003 ###########
-        init_mean = 0.0 #######
-        alpha = 0.2 #############
+        init_sigma = 0.003
+        init_mean = 0.0
+        alpha = 0.2
         # scrivo stringa info log gen #
         text = f"GEN\n{fs,fm,init_sigma,init_mean,noise_dim,alpha}\n"
         gen = build_generator(fs,fm,init_sigma,init_mean,alpha,noise_dim)
@@ -296,7 +302,7 @@ if __name__ == '__main__' :
         fm = 256
         init_sigma = 0.02
         init_mean = 0.0
-        alpha = 0.2 ###############
+        alpha = 0.2
         critic = build_critic(fs,fm,init_sigma,init_mean,alpha)
         # scrivo stringa info log critic #
         text += f"CRITIC\n{fs,fm,init_sigma,init_mean,alpha}\n"
@@ -307,4 +313,4 @@ if __name__ == '__main__' :
             
     wgan = WGANGP(gen, critic, noise_dim, ncritic, 125, text)
     print(f'train for {epochs} epochs')
-    wgan.train(epochs, db_train)
+    wgan.train(epochs, db_train, db_test)

@@ -5,7 +5,9 @@ import numpy as np
 
 def acf(x):
     result = np.correlate(x, x, mode='full')
-    return result[result.size // 2:] / result[result.size // 2:].max()
+    for i in range(len(result)):
+        result[i] = result[i] / (len(result)-i) # normalizzazione in base al numero di punti sommati
+    return  result[result.size // 2:] / result[result.size // 2]
 
 def exit_time(paths, soglia):
     for jj, path in enumerate(paths):
@@ -21,26 +23,26 @@ def exit_time(paths, soglia):
             if ii == 49999: print(f'computing exit time for r={r}, {ii:5}', end=' ')
             else: print(f'computing exit time for r={r}, {ii:5}', end='\r')
             a = traj[0,:]
-            b = traj[1,:]
-            c = traj[2,:]
+            #b = traj[1,:]
+            #c = traj[2,:]
             a -= np.mean(a)
-            b -= np.mean(b)
-            c -= np.mean(c)
+            #b -= np.mean(b)
+            #c -= np.mean(c)
             acfx = acf(a)
-            acfy = acf(b)
-            acfz = acf(c)
+            #acfy = acf(b)
+            #acfz = acf(c)
             for t in range(len(acfx)):
                 if acfx[t] < soglia :
                     etx.append((1.)/(acfx[t]-acfx[t-1])*(0.5-acfx[t-1]) + t - 1.) ### interpolazione lineare
                     break
-            for t, y in enumerate(acfy):
-                if y < soglia :
-                    ety.append(t)
-                    break
-            for t, y in enumerate(acfz):
-                if y < soglia :
-                    etz.append(t)
-                    break
+            #for t, y in enumerate(acfy):
+            #    if y < soglia :
+            #        ety.append(t)
+            #        break
+            #for t, y in enumerate(acfz):
+            #    if y < soglia :
+            #        etz.append(t)
+            #        break
         np.save(f'/scratch/scarpolini/databases/exit_time_{soglia:.2f}_lorenz_{r:.1f}', [etx])
         print('Saved!')
         

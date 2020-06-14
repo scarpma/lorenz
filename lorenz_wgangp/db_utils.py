@@ -55,7 +55,7 @@ def load_data():
     
     
     
-    validation_split = 0.0
+    validation_split = 0.2
     
     sig_len = len(db[0,:,0])
     print(f"siglen: {sig_len}")

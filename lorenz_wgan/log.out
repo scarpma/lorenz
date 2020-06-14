@@ -1,0 +1,4 @@
+  File "wgan.py", line 20
+    self.dir_path = f"/scratch/scarpolini/lorenz_wgan/runs/{self.current_run}/"
+                                                                              ^
+SyntaxError: invalid syntax
